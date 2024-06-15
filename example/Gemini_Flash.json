@@ -1,0 +1,173 @@
+{
+  "last_node_id": 129,
+  "last_link_id": 248,
+  "nodes": [
+    {
+      "id": 114,
+      "type": "LoadImage",
+      "pos": [
+        1216,
+        489
+      ],
+      "size": [
+        308.35563032270056,
+        469.5468399579007
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            245
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "Screenshot 2024-04-26 141727 (9).png",
+        "image"
+      ]
+    },
+    {
+      "id": 129,
+      "type": "Textbox",
+      "pos": [
+        2053,
+        490
+      ],
+      "size": [
+        340.33474844015154,
+        454.1176067616143
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "passthrough",
+          "type": "STRING",
+          "link": 248,
+          "widget": {
+            "name": "passthrough"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "links": [],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Textbox",
+        "ttNbgOverride": {
+          "color": "#432",
+          "bgcolor": "#653",
+          "groupcolor": "#b58b2a"
+        }
+      },
+      "widgets_values": [
+        "A city skyline with tall buildings, illuminated by street lights, with a dramatic lightning storm above. The lightning strikes are white and yellow, with a few branches of lightning branching off into the sky. The background is a dark blue with some clouds. The city is in the foreground and the lightning is in the background. The lightning is striking the city in multiple places. The overall image is one of power and beauty.",
+        ""
+      ]
+    },
+    {
+      "id": 123,
+      "type": "Gemini_Flash",
+      "pos": [
+        1620,
+        490
+      ],
+      "size": {
+        "0": 336.30657958984375,
+        "1": 226.3667755126953
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 245
+        }
+      ],
+      "outputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "links": [
+            248
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Gemini_Flash"
+      },
+      "widgets_values": [
+        "Analyze the image and make a txt2img detailed prompt. no prefix!",
+        true,
+        "1234567890"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [
+    [
+      245,
+      114,
+      0,
+      123,
+      0,
+      "IMAGE"
+    ],
+    [
+      248,
+      123,
+      0,
+      129,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 1.2839025177495016,
+      "offset": [
+        -787.5162949623581,
+        -274.58160567461516
+      ]
+    },
+    "info": {
+      "name": "workflow",
+      "author": "",
+      "description": "",
+      "version": "1",
+      "created": "2024-06-06T04:35:02.788Z",
+      "modified": "2024-06-14T05:54:44.908Z",
+      "software": "ComfyUI"
+    }
+  },
+  "version": 0.4
+}
