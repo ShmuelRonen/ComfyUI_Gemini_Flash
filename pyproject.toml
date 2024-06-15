@@ -1,0 +1,15 @@
+[project]
+name = "comfyui_gemini_flash"
+description = "ComfyUI_Gemini_Flash is a custom node for ComfyUI, integrating the capabilities of the Gemini 1.5 Flash model. This node supports text and vision-based prompts, allowing users to analyze and adapt images to text prompts for text2image tasks."
+version = "1.0.0"
+license = "LICENSE"
+dependencies = ["google-generativeai>0.4.1"]
+
+[project.urls]
+Repository = "https://github.com/ShmuelRonen/ComfyUI_Gemini_Flash"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = ""
+DisplayName = "ComfyUI_Gemini_Flash"
+Icon = ""
