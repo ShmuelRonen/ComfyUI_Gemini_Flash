@@ -35,7 +35,7 @@ class Gemini_Flash:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "prompt": ("STRING", {"default": "Analyze the image and make a txt2img detailed prompt. no prefix!": True}),
+                "prompt": ("STRING", {"default": "Analyze the image and make a txt2img detailed prompt. No prefix!", "multiline": True}),
                 "vision": ("BOOLEAN", {"default": True}),  # Default vision to True
                 "api_key": ("STRING", {"default": ""})  # Add api_key as an input
             },
