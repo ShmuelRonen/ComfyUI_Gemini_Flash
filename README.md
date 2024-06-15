@@ -23,3 +23,7 @@
 2. Toggle the `vision` option as needed.
 3. Provide your prompt and optional image input.
 4. Generate content using the powerful Gemini 1.5 Flash model.
+
+## Acknowledgements
+
+This project was made possible thanks to the contributions of the ComfyUI community and the developers of the Gemini model at Google. Special thanks to all the contributors and users for their continuous support and feedback.
