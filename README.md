@@ -24,6 +24,10 @@
 3. Provide your prompt and optional image input.
 4. Generate content using the powerful Gemini 1.5 Flash model.
 
+## About Gemini 1.5 Flash
+
+The Gemini 1.5 Flash model by Google is designed to be the fastest and most cost-efficient model for high volume tasks. It addresses developers' needs for lower latency and cost, making it ideal for large-scale applications. With a rate limit increased to 1000 requests per minute and the removal of the request per day limit, Gemini 1.5 Flash provides robust performance for demanding applications. Additionally, tuning support for the model is available, allowing for customization to meet specific performance thresholds without additional per-token costs.
+
 ## Acknowledgements
 
 This project was made possible thanks to the contributions of the ComfyUI community and the developers of the Gemini model at Google. Special thanks to all the contributors and users for their continuous support and feedback.
