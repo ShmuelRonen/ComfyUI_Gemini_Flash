@@ -10,6 +10,7 @@
 - **Text and Vision Integration**: Toggle between text-only or vision-enabled mode for versatile content generation.
 - **API Key Management**: Securely save and manage your Gemini API key.
 - **Simple Configuration**: Easy setup with automated configuration file creation.
+- **Proxy Support**: Now support for using proxies, where the Gemini Flash model is not freely accessible.
 
 ## Installation
 
