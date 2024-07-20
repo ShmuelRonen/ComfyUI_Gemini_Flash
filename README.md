@@ -24,6 +24,14 @@
 3. Provide your prompt and optional image input.
 4. Generate content using the powerful Gemini 1.5 Flash model.
 
+## Proxy Support
+
+This node now includes support for using proxies, which is particularly useful in regions where the Gemini Flash model is not freely accessible.
+
+1. Setup Squid Proxy: Follow [this guide](https://www.digitalocean.com/community/tutorials/how-to-set-up-squid-proxy-on-ubuntu-20-04) to set up Squid proxy on a VPS in a region where Gemini Flash is free available (e.g., USA, India).
+2. Fill in the proxy parameter with the proxy credentials: : `http(s)://PROXY_USER:PROXY_PASS@PROXY_ADDRESS:PROXY_PORT`
+3. All requests to Gemini will now route through the specified HTTP proxy.
+
 ## About Gemini 1.5 Flash
 
 The Gemini 1.5 Flash model by Google is designed to be the fastest and most cost-efficient model for high volume tasks. It addresses developers' needs for lower latency and cost, making it ideal for large-scale applications. With a rate limit increased to 1000 requests per minute and the removal of the request per day limit, Gemini 1.5 Flash provides robust performance for demanding applications. Additionally, tuning support for the model is available, allowing for customization to meet specific performance thresholds without additional per-token costs.
