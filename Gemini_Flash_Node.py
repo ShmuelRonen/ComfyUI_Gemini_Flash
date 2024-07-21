@@ -4,7 +4,7 @@ import google.generativeai as genai
 from io import BytesIO
 from PIL import Image
 import torch
-import requests
+from contextlib import contextmanager
 
 p = os.path.dirname(os.path.realpath(__file__))
 
@@ -22,6 +22,21 @@ def save_config(config):
     with open(config_path, 'w') as f:
         json.dump(config, f, indent=4)
 
+@contextmanager
+def temporary_env_var(key: str, new_value):
+    old_value = os.environ.get(key)
+    if new_value is not None:
+        os.environ[key] = new_value
+    elif key in os.environ:
+        del os.environ[key]
+    try:
+        yield
+    finally:
+        if old_value is not None:
+            os.environ[key] = old_value
+        elif key in os.environ:
+            del os.environ[key]
+
 class Gemini_Flash:
 
     def __init__(self, api_key=None, proxy=None):
@@ -32,7 +47,7 @@ class Gemini_Flash:
             self.configure_genai()
 
     def configure_genai(self):
-        genai.configure(api_key=self.api_key)
+        genai.configure(api_key=self.api_key, transport='rest')
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -79,30 +94,22 @@ class Gemini_Flash:
         model_name = 'gemini-1.5-flash'
         model = genai.GenerativeModel(model_name)
 
-        # Set up environment variables for proxy
-        if self.proxy:
-            os.environ['HTTP_PROXY'] = self.proxy
-            os.environ['HTTPS_PROXY'] = self.proxy
-        else:
-            # Clear proxy settings if no proxy is specified
-            os.environ.pop('HTTP_PROXY', None)
-            os.environ.pop('HTTPS_PROXY', None)
-
-        try:
-            if not vision:
-                # Act like a text LLM
-                response = model.generate_content(prompt)
-                textoutput = response.text
-            else:
-                # Vision enabled
-                if image is None:
-                    raise ValueError(f"{model_name} needs image")
-                else:
-                    pil_image = self.tensor_to_image(image)
-                    response = model.generate_content([prompt, pil_image])
+        with temporary_env_var('HTTP_PROXY', self.proxy), temporary_env_var('HTTPS_PROXY', self.proxy):
+            try:
+                if not vision:
+                    # Act like a text LLM
+                    response = model.generate_content(prompt)
                     textoutput = response.text
-        except Exception as e:
-            textoutput = f"Error: {str(e)}"
+                else:
+                    # Vision enabled
+                    if image is None:
+                        raise ValueError(f"{model_name} needs image")
+                    else:
+                        pil_image = self.tensor_to_image(image)
+                        response = model.generate_content([prompt, pil_image])
+                        textoutput = response.text
+            except Exception as e:
+                textoutput = f"Error: {str(e)}"
         
         return (textoutput,)
 
