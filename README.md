@@ -1,43 +1,112 @@
 # ComfyUI_Gemini_Flash
 
-**ComfyUI_Gemini_Flash** is a custom node for ComfyUI, integrating the capabilities of the Gemini 1.5 Flash model. This node supports text and vision-based prompts, allowing users to analyze and adapt images to text prompts for text2image tasks.
-
-![proxy](https://github.com/user-attachments/assets/22a52b82-ceab-4d67-99df-57616bd0594a)
-
-
+ComfyUI_Gemini_Flash is a custom node for ComfyUI that integrates the powerful Gemini 1.5 Flash model from Google. This node allows users to leverage Gemini's capabilities for various AI tasks, including text generation, image analysis, video processing, and audio transcription.
 
 ## Features
 
-- **Text and Vision Integration**: Toggle between text-only or vision-enabled mode for versatile content generation.
+- **Multimodal Input Support**: Process text, images, videos, and audio using the Gemini 1.5 Flash model.
+- **Long Context Window**: Utilize Gemini 1.5 Flash's 1-million-token context window for processing large inputs.
 - **API Key Management**: Securely save and manage your Gemini API key.
-- **Simple Configuration**: Easy setup with automated configuration file creation.
-- **Proxy Support**: Now support for using proxies, where the Gemini Flash model is not freely accessible.
+- **Proxy Support**: Configure proxy settings for API requests.
+- **Output Control**: Adjust max output tokens and temperature for fine-tuned responses.
 
 ## Installation
 
-1. Clone the repository to your ComfyUI custom nodes directory.
-2. Ensure `config.json` is in the root directory of the node.
-3. Start using the Gemini Flash node in ComfyUI!
+1. Clone this repository to your ComfyUI custom nodes directory:
+   ```
+   git clone https://github.com/YourUsername/ComfyUI_Gemini_Flash.git
+   ```
+2. Install the required dependencies:
+   ```
+   pip install google-generativeai pillow torchaudio
+   ```
+3. Ensure you have a valid Gemini API key from Google AI Studio.
+
+## Configuration
+
+1. Open the `config.json` file in the `ComfyUI_Gemini_Flash` directory.
+2. Replace `"your key"` with your actual Gemini API key.
+3. Optionally, set a proxy if required.
 
 ## Usage
 
-1. Enter your Gemini API key in the provided input.
-2. Toggle the `vision` option as needed.
-3. Provide your prompt and optional image input.
-4. Generate content using the powerful Gemini 1.5 Flash model.
+1. In ComfyUI, locate the "Gemini Flash 002" node in the "Gemini Flash 002" category.
+2. Connect the appropriate inputs based on your use case (text, image, video, or audio).
+3. Set the prompt and any additional parameters (max output tokens, temperature).
+4. Run the workflow to generate content using Gemini 1.5 Flash.
 
-## Proxy Support
+## Input Types and Parameters
 
-This node now includes support for using proxies, which is particularly useful in regions where the Gemini Flash model is not freely accessible.
+### Required Inputs:
+- **prompt**: (STRING) The main instruction or question for the Gemini model.
+- **input_type**: (["text", "image", "video", "audio"]) Specifies the type of input being processed.
+- **api_key**: (STRING) Your Gemini API key.
+- **proxy**: (STRING) Proxy settings (if needed).
 
-1. Setup Squid Proxy: Follow [this guide](https://www.digitalocean.com/community/tutorials/how-to-set-up-squid-proxy-on-ubuntu-20-04) to set up Squid proxy on a VPS in a region where Gemini Flash is free available (e.g., USA, India).
-2. Fill in the proxy parameter with the proxy credentials: : `http(s)://PROXY_USER:PROXY_PASS@PROXY_ADDRESS:PROXY_PORT`
-3. All requests to Gemini will now route through the specified HTTP proxy.
+### Optional Inputs:
+- **text_input**: (STRING) Additional text input for text-based tasks.
+- **image**: (IMAGE) Image input for image analysis tasks.
+- **video**: (IMAGE) Video input (processed as a sequence of frames).
+- **audio**: (AUDIO) Audio input for transcription or analysis.
+- **max_output_tokens**: (INT, default: 1000) Controls the length of the generated output.
+- **temperature**: (FLOAT, default: 0.4, range: 0.0 to 1.0) Adjusts the randomness of the output.
+
+## Versions and Capabilities
+
+### New Version (Gemini Flash 002)
+- Supports text, image, video, and audio inputs.
+- Improved video handling with frame sampling and resizing to manage payload size.
+- Better prompts for video analysis, considering movement and changes across frames.
+- Robust error handling and payload size management.
+
+### Old Version (Gemini Flash)
+- Supported text and image inputs.
+- Basic video support (treated similarly to images).
+- Limited audio support.
+
+## Input Processing Details
+
+### Text
+- Directly processed by the Gemini model.
+
+### Image
+- Resized to a maximum of 512x512 pixels to manage payload size.
+- Analyzed for content, objects, and visual elements.
+
+### Video
+- Processed as a sequence of frames.
+- Samples up to 10 frames evenly distributed throughout the video.
+- Each frame is resized to 256x256 pixels.
+- The model analyzes changes and movements across frames.
+
+### Audio
+- Converted to mono and resampled to 16kHz if necessary.
+- Sent to the Gemini model for transcription or analysis.
+
+## Output
+
+The node returns a STRING containing the generated content or analysis from the Gemini model.
 
 ## About Gemini 1.5 Flash
 
-The Gemini 1.5 Flash model by Google is designed to be the fastest and most cost-efficient model for high volume tasks. It addresses developers' needs for lower latency and cost, making it ideal for large-scale applications. With a rate limit increased to 1000 requests per minute and the removal of the request per day limit, Gemini 1.5 Flash provides robust performance for demanding applications. Additionally, tuning support for the model is available, allowing for customization to meet specific performance thresholds without additional per-token costs.
+Gemini 1.5 Flash is designed to be the fastest and most cost-efficient model for high-volume tasks. It features a 1-million-token context window, enabling processing of large amounts of text, long videos, or extended audio clips in a single request.
+
+## Troubleshooting
+
+If you encounter any issues:
+1. Ensure your API key is correctly set in the `config.json` file.
+2. Check that your input size is not exceeding the model's limits (especially for video and audio).
+3. Verify that all required dependencies are installed.
+
+## Contributing
+
+Contributions to improve ComfyUI_Gemini_Flash are welcome! Please feel free to submit issues or pull requests.
 
 ## Acknowledgements
 
 This project was made possible thanks to the contributions of the ComfyUI community and the developers of the Gemini model at Google. Special thanks to all the contributors and users for their continuous support and feedback.
+
+## License
+
+[Specify your license here]
+
