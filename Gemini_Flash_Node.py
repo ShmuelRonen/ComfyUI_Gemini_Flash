@@ -4,6 +4,7 @@ import google.generativeai as genai
 from io import BytesIO
 from PIL import Image
 import torch
+import torchaudio
 from contextlib import contextmanager
 
 p = os.path.dirname(os.path.realpath(__file__))
@@ -37,7 +38,7 @@ def temporary_env_var(key: str, new_value):
         elif key in os.environ:
             del os.environ[key]
 
-class Gemini_Flash:
+class Gemini_Flash_002:
 
     def __init__(self, api_key=None, proxy=None):
         config = get_config()
@@ -53,21 +54,26 @@ class Gemini_Flash:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "prompt": ("STRING", {"default": "Analyze the image and make a txt2img detailed prompt. no prefix!", "multiline": True}),
-                "vision": ("BOOLEAN", {"default": True}),
+                "prompt": ("STRING", {"default": "Analyze the situation in details.", "multiline": True}),
+                "input_type": (["text", "image", "video", "audio"], {"default": "text"}),
                 "api_key": ("STRING", {"default": ""}),
                 "proxy": ("STRING", {"default": ""})
             },
             "optional": {
-                "image": ("IMAGE",),  
+                "text_input": ("STRING", {"default": "", "multiline": True}),
+                "image": ("IMAGE",),
+                "video": ("IMAGE",),
+                "audio": ("AUDIO",),
+                "max_output_tokens": ("INT", {"default": 1000, "min": 1, "max": 2048}),
+                "temperature": ("FLOAT", {"default": 0.4, "min": 0.0, "max": 1.0, "step": 0.1}),
             }
         }
 
     RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("text",)
+    RETURN_NAMES = ("generated_content",)
     FUNCTION = "generate_content"
 
-    CATEGORY = "Gemini flash"
+    CATEGORY = "Gemini Flash 002"
 
     def tensor_to_image(self, tensor):
         tensor = tensor.cpu()
@@ -75,7 +81,19 @@ class Gemini_Flash:
         image = Image.fromarray(image_np, mode='RGB')
         return image
 
-    def generate_content(self, prompt, vision, api_key, proxy, image=None):
+    def resize_image(self, image, max_size):
+        width, height = image.size
+        if width > height:
+            if width > max_size:
+                height = int(max_size * height / width)
+                width = max_size
+        else:
+            if height > max_size:
+                width = int(max_size * width / height)
+                height = max_size
+        return image.resize((width, height), Image.LANCZOS)
+
+    def generate_content(self, prompt, input_type, api_key, proxy, text_input=None, image=None, video=None, audio=None, max_output_tokens=1000, temperature=0.4):
         config_updated = False
         if api_key and api_key != self.api_key:
             self.api_key = api_key
@@ -96,27 +114,68 @@ class Gemini_Flash:
 
         with temporary_env_var('HTTP_PROXY', self.proxy), temporary_env_var('HTTPS_PROXY', self.proxy):
             try:
-                if not vision:
-                    # Act like a text LLM
-                    response = model.generate_content(prompt)
-                    textoutput = response.text
+                content = []
+                if input_type == "text":
+                    content = [prompt, text_input] if text_input else [prompt]
+                elif input_type == "image" and image is not None:
+                    pil_image = self.tensor_to_image(image)
+                    pil_image = self.resize_image(pil_image, 1024)  # Resize single image to max 1024 pixels on longest side
+                    content = [prompt, pil_image]
+                elif input_type == "video" and video is not None:
+                    if len(video.shape) == 4 and video.shape[0] > 1:  # Multiple frames
+                        frame_count = video.shape[0]
+                        step = max(1, frame_count // 10)  # Sample at most 10 frames
+                        frames = [self.tensor_to_image(video[i]) for i in range(0, frame_count, step)]
+                        frames = [self.resize_image(frame, 256) for frame in frames]  # Resize frames to 256x256
+                        content = [f"This is a video with {frame_count} frames. Analyze the video content, paying attention to any changes or movements across frames:"] + frames + [prompt]
+                    else:  # Single frame
+                        pil_image = self.tensor_to_image(video.squeeze(0) if len(video.shape) == 4 else video)
+                        pil_image = self.resize_image(pil_image, 1024)  # Treat single frame as image, resize to max 1024 pixels
+                        content = ["This is a single frame from a video. Analyze the image content:", pil_image, prompt]
+                elif input_type == "audio" and audio is not None:
+                    waveform = audio["waveform"]
+                    sample_rate = audio["sample_rate"]
+                    
+                    # Ensure the audio is 2D (channels, samples)
+                    if waveform.dim() == 3:
+                        waveform = waveform.squeeze(0)  # Remove batch dimension if present
+                    elif waveform.dim() == 1:
+                        waveform = waveform.unsqueeze(0)  # Add channel dimension if not present
+                    
+                    # Ensure the audio is mono
+                    if waveform.shape[0] > 1:
+                        waveform = torch.mean(waveform, dim=0, keepdim=True)
+                    
+                    # Convert to 16kHz if necessary
+                    if sample_rate != 16000:
+                        waveform = torchaudio.functional.resample(waveform, sample_rate, 16000)
+                    
+                    # Convert to bytes
+                    buffer = BytesIO()
+                    torchaudio.save(buffer, waveform, 16000, format="WAV")
+                    audio_bytes = buffer.getvalue()
+                    
+                    content = [prompt, {"mime_type": "audio/wav", "data": audio_bytes}]
                 else:
-                    # Vision enabled
-                    if image is None:
-                        raise ValueError(f"{model_name} needs image")
-                    else:
-                        pil_image = self.tensor_to_image(image)
-                        response = model.generate_content([prompt, pil_image])
-                        textoutput = response.text
+                    raise ValueError(f"Invalid or missing input for {input_type}")
+
+                generation_config = genai.types.GenerationConfig(
+                    max_output_tokens=max_output_tokens,
+                    temperature=temperature
+                )
+
+                response = model.generate_content(content, generation_config=generation_config)
+                generated_content = response.text
+
             except Exception as e:
-                textoutput = f"Error: {str(e)}"
+                generated_content = f"Error: {str(e)}"
         
-        return (textoutput,)
+        return (generated_content,)
 
 NODE_CLASS_MAPPINGS = {
-    "Gemini_Flash": Gemini_Flash,
+    "Gemini_Flash_002": Gemini_Flash_002,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "Gemini_Flash": "Gemini flash",
+    "Gemini_Flash_002": "Gemini Flash 002",
 }
