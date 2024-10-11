@@ -1,4 +1,4 @@
-# ComfyUI_Gemini_Flash
+# ComfyUI_Gemini_Flash 002
 
 ComfyUI_Gemini_Flash is a custom node for ComfyUI that integrates the powerful Gemini 1.5 Flash 002 model from Google. This node allows users to leverage Gemini's capabilities for various AI tasks, including text generation, image analysis, video processing, and audio transcription.
 
