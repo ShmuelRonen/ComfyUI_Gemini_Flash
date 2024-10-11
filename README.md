@@ -32,6 +32,38 @@ https://github.com/user-attachments/assets/32ba1803-9c19-4c79-bdfc-15c61d05bf9f
 2. Replace `"your key"` with your actual Gemini API key.
 3. Optionally, set a proxy if required.
 
+## Proxy Configuration
+
+The Gemini Flash 002 node supports the use of a proxy for API requests. This can be useful if you're behind a corporate firewall or need to route your requests through a specific server. To use a proxy:
+
+1. In the ComfyUI interface, locate the "Gemini Flash 002" node.
+2. Find the "proxy" input field.
+3. Enter your proxy URL in the following format:
+   ```
+   http://username:password@proxy_host:proxy_port
+   ```
+   or if no authentication is required:
+   ```
+   http://proxy_host:proxy_port
+   ```
+
+For example:
+- With authentication: `http://john:pass123@proxy.example.com:8080`
+- Without authentication: `http://proxy.example.com:8080`
+
+You can also set a default proxy in the `config.json` file:
+
+```json
+{
+  "GEMINI_API_KEY": "your_api_key_here",
+  "PROXY": "http://proxy.example.com:8080"
+}
+```
+
+The proxy set in the node input will override the one in the config file.
+
+Note: Make sure your proxy is compatible with HTTPS traffic, as the Gemini API uses secure connections.
+
 ## Usage
 
 1. In ComfyUI, locate the "Gemini Flash 002" node in the "Gemini Flash 002" category.
