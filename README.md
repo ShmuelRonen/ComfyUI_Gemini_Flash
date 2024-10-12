@@ -106,13 +106,13 @@ Note: Make sure your proxy is compatible with HTTPS traffic, as the Gemini API u
 - Directly processed by the Gemini model.
 
 ### Image
-- Resized to a maximum of 512x512 pixels to manage payload size.
+- Resized to a maximum of 1024x1024 pixels to manage payload size.
 - Analyzed for content, objects, and visual elements.
 
 ### Video
 - Processed as a sequence of frames.
 - Samples up to 10 frames evenly distributed throughout the video.
-- Each frame is resized to 256x256 pixels.
+- Each frame is resized to 512x512 pixels.
 - The model analyzes changes and movements across frames.
 
 ### Audio
