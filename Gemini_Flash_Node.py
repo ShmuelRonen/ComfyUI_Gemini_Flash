@@ -121,8 +121,8 @@ class Gemini_ImageEditor:
                             edited_image = Image.open(BytesIO(image_data))
                             return (self.image_to_tensor(edited_image), 0, candidate.content.parts[-1].text if candidate.content.parts[-1].text else "")
                 else:
-                    print("Content without parts:", response)
-                    return (self.image_to_tensor(original_image), 2, "")
+                    print("Content without parts:", candidate.finish_reason)
+                    return (self.image_to_tensor(original_image), 2, candidate.finish_reason)
 
             return (self.image_to_tensor(original_image), 3, "")
 
