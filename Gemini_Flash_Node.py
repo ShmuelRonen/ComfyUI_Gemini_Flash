@@ -1,87 +1,55 @@
 import os
 import json
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from io import BytesIO
 from PIL import Image
 import torch
-import torchaudio
-from contextlib import contextmanager
+import numpy as np
 
-p = os.path.dirname(os.path.realpath(__file__))
+directory = os.path.dirname(os.path.realpath(__file__))
 
 def get_config():
     try:
-        config_path = os.path.join(p, 'config.json')
-        with open(config_path, 'r') as f:  
-            config = json.load(f)
-        return config
+        config_path = os.path.join(directory, 'config.json')
+        with open(config_path, 'r') as f:
+            return json.load(f)
     except:
         return {}
 
 def save_config(config):
-    config_path = os.path.join(p, 'config.json')
-    with open(config_path, 'w') as f:
+    with open(os.path.join(directory, 'config.json'), 'w') as f:
         json.dump(config, f, indent=4)
 
-@contextmanager
-def temporary_env_var(key: str, new_value):
-    old_value = os.environ.get(key)
-    if new_value is not None:
-        os.environ[key] = new_value
-    elif key in os.environ:
-        del os.environ[key]
-    try:
-        yield
-    finally:
-        if old_value is not None:
-            os.environ[key] = old_value
-        elif key in os.environ:
-            del os.environ[key]
+class Gemini_ImageEditor:
 
-class Gemini_Flash_002:
-
-    def __init__(self, api_key=None, proxy=None):
+    def __init__(self, api_key=None):
         config = get_config()
         self.api_key = api_key or config.get("GEMINI_API_KEY")
-        self.proxy = proxy or config.get("PROXY")
-        if self.api_key is not None:
-            self.configure_genai()
-
-    def configure_genai(self):
-        genai.configure(api_key=self.api_key, transport='rest')
+        self.client = genai.Client(api_key=self.api_key)
+        self.model_name = "gemini-2.0-flash-exp"
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "prompt": ("STRING", {"default": "Analyze the situation in details.", "multiline": True}),
-                "input_type": (["text", "image", "video", "audio"], {"default": "text"}),
-                "api_key": ("STRING", {"default": ""}),
-                "proxy": ("STRING", {"default": ""})
-            },
-            "optional": {
-                "text_input": ("STRING", {"default": "", "multiline": True}),
+                "prompt": ("STRING", {"default": "Modify the image accordingly.", "multiline": True}),
                 "image": ("IMAGE",),
-                "video": ("IMAGE",),
-                "audio": ("AUDIO",),
-                "max_output_tokens": ("INT", {"default": 1000, "min": 1, "max": 2048}),
-                "temperature": ("FLOAT", {"default": 0.4, "min": 0.0, "max": 1.0, "step": 0.1}),
+                "api_key": ("STRING", {"default": ""})
             }
         }
 
-    RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("generated_content",)
-    FUNCTION = "generate_content"
-
-    CATEGORY = "Gemini Flash 002"
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("edited_image",)
+    FUNCTION = "edit_image"
+    CATEGORY = "Gemini Image Editor"
 
     def tensor_to_image(self, tensor):
         tensor = tensor.cpu()
         image_np = tensor.squeeze().mul(255).clamp(0, 255).byte().numpy()
-        image = Image.fromarray(image_np, mode='RGB')
-        return image
+        return Image.fromarray(image_np, mode='RGB')
 
-    def resize_image(self, image, max_size):
+    def resize_image(self, image, max_size=1024):
         width, height = image.size
         if width > height:
             if width > max_size:
@@ -93,89 +61,59 @@ class Gemini_Flash_002:
                 height = max_size
         return image.resize((width, height), Image.LANCZOS)
 
-    def generate_content(self, prompt, input_type, api_key, proxy, text_input=None, image=None, video=None, audio=None, max_output_tokens=1000, temperature=0.4):
-        config_updated = False
+    def image_to_tensor(self, image):
+        image = image.convert("RGB")
+        tensor = torch.from_numpy(np.array(image)).float() / 255.0
+        return tensor.unsqueeze(0)
+
+    def edit_image(self, prompt, image, api_key):
         if api_key and api_key != self.api_key:
             self.api_key = api_key
-            config_updated = True
-        if proxy != self.proxy:
-            self.proxy = proxy
-            config_updated = True
-        
-        if config_updated:
-            save_config({"GEMINI_API_KEY": self.api_key, "PROXY": self.proxy})
-            self.configure_genai()
+            save_config({"GEMINI_API_KEY": api_key})
+            self.client = genai.Client(api_key=self.api_key)
 
-        if not self.api_key:
-            raise ValueError("API key is required")
+        pil_image = self.tensor_to_image(image)
+        pil_image = self.resize_image(pil_image, 1024)
 
-        model_name = 'gemini-1.5-flash'
-        model = genai.GenerativeModel(model_name)
+        temp_image_path = os.path.join(directory, "temp_image.png")
+        pil_image.save(temp_image_path, format="PNG")
 
-        with temporary_env_var('HTTP_PROXY', self.proxy), temporary_env_var('HTTPS_PROXY', self.proxy):
-            try:
-                content = []
-                if input_type == "text":
-                    content = [prompt, text_input] if text_input else [prompt]
-                elif input_type == "image" and image is not None:
-                    pil_image = self.tensor_to_image(image)
-                    pil_image = self.resize_image(pil_image, 1024)  # Resize single image to max 1024 pixels on longest side
-                    content = [prompt, pil_image]
-                elif input_type == "video" and video is not None:
-                    if len(video.shape) == 4 and video.shape[0] > 1:  # Multiple frames
-                        frame_count = video.shape[0]
-                        step = max(1, frame_count // 10)  # Sample at most 10 frames
-                        frames = [self.tensor_to_image(video[i]) for i in range(0, frame_count, step)]
-                        frames = [self.resize_image(frame, 256) for frame in frames]  # Resize frames to 256x256
-                        content = [f"This is a video with {frame_count} frames. Analyze the video content, paying attention to any changes or movements across frames:"] + frames + [prompt]
-                    else:  # Single frame
-                        pil_image = self.tensor_to_image(video.squeeze(0) if len(video.shape) == 4 else video)
-                        pil_image = self.resize_image(pil_image, 1024)  # Treat single frame as image, resize to max 1024 pixels
-                        content = ["This is a single frame from a video. Analyze the image content:", pil_image, prompt]
-                elif input_type == "audio" and audio is not None:
-                    waveform = audio["waveform"]
-                    sample_rate = audio["sample_rate"]
-                    
-                    # Ensure the audio is 2D (channels, samples)
-                    if waveform.dim() == 3:
-                        waveform = waveform.squeeze(0)  # Remove batch dimension if present
-                    elif waveform.dim() == 1:
-                        waveform = waveform.unsqueeze(0)  # Add channel dimension if not present
-                    
-                    # Ensure the audio is mono
-                    if waveform.shape[0] > 1:
-                        waveform = torch.mean(waveform, dim=0, keepdim=True)
-                    
-                    # Convert to 16kHz if necessary
-                    if sample_rate != 16000:
-                        waveform = torchaudio.functional.resample(waveform, sample_rate, 16000)
-                    
-                    # Convert to bytes
-                    buffer = BytesIO()
-                    torchaudio.save(buffer, waveform, 16000, format="WAV")
-                    audio_bytes = buffer.getvalue()
-                    
-                    content = [prompt, {"mime_type": "audio/wav", "data": audio_bytes}]
-                else:
-                    raise ValueError(f"Invalid or missing input for {input_type}")
+        contents = [
+            types.Content(
+                role="user",
+                parts=[
+                    types.Part.from_uri(file_uri=temp_image_path, mime_type="image/png"),
+                    types.Part.from_text(prompt),
+                ],
+            ),
+        ]
 
-                generation_config = genai.types.GenerationConfig(
-                    max_output_tokens=max_output_tokens,
-                    temperature=temperature
-                )
+        generate_content_config = types.GenerateContentConfig(
+            temperature=1,
+            top_p=0.95,
+            top_k=40,
+            max_output_tokens=8192,
+            response_modalities=["image", "text"],
+            response_mime_type="text/plain",
+        )
 
-                response = model.generate_content(content, generation_config=generation_config)
-                generated_content = response.text
+        response = self.client.models.generate_content_stream(
+            model=self.model_name,
+            contents=contents,
+            config=generate_content_config,
+        )
 
-            except Exception as e:
-                generated_content = f"Error: {str(e)}"
-        
-        return (generated_content,)
+        for chunk in response:
+            if chunk.candidates and chunk.candidates[0].content.parts:
+                inline_data = chunk.candidates[0].content.parts[0].inline_data
+                if inline_data:
+                    output_path = os.path.join(directory, "edited_image.png")
+                    with open(output_path, "wb") as f:
+                        f.write(inline_data.data)
+                    edited_image = Image.open(output_path)
+                    return (self.image_to_tensor(edited_image),)
 
-NODE_CLASS_MAPPINGS = {
-    "Gemini_Flash_002": Gemini_Flash_002,
-}
+        return (self.image_to_tensor(pil_image),)
 
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "Gemini_Flash_002": "Gemini Flash 002",
-}
+NODE_CLASS_MAPPINGS = {"Gemini_ImageEditor": Gemini_ImageEditor}
+NODE_DISPLAY_NAME_MAPPINGS = {"Gemini_ImageEditor": "Gemini Image Editor"}
