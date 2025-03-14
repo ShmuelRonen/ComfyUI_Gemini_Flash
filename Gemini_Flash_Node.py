@@ -39,8 +39,8 @@ class Gemini_ImageEditor:
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "INT")
-    RETURN_NAMES = ("edited_image", "status_code")
+    RETURN_TYPES = ("IMAGE", "INT", "STRING")
+    RETURN_NAMES = ("edited_image", "status_code", "llm_text")
     FUNCTION = "edit_image"
     CATEGORY = "Gemini Image Editor"
 
@@ -84,12 +84,7 @@ class Gemini_ImageEditor:
                 {
                     "role": "user",
                     "parts": [
-                        {
-                            "fileData": {
-                                "mimeType": "image/png",
-                                "fileUri": uploaded_file.uri,
-                            },
-                        },
+                        {"fileData": {"mimeType": "image/png", "fileUri": uploaded_file.uri}},
                         {"text": prompt},
                     ],
                 },
@@ -124,14 +119,16 @@ class Gemini_ImageEditor:
                         if part.inline_data:
                             image_data = part.inline_data.data
                             edited_image = Image.open(BytesIO(image_data))
-                            return (self.image_to_tensor(edited_image), 0)
+                            return (self.image_to_tensor(edited_image), 0, candidate.content.parts[-1].text if candidate.content.parts[-1].text else "")
                 else:
-                    return (self.image_to_tensor(original_image), 2)
+                    print("Content without parts:", response)
+                    return (self.image_to_tensor(original_image), 2, "")
 
-            return (self.image_to_tensor(original_image), 3)
+            return (self.image_to_tensor(original_image), 3, "")
 
-        except Exception:
-            return (self.image_to_tensor(original_image), 1)
+        except Exception as e:
+            print("Exception during processing:", str(e))
+            return (self.image_to_tensor(original_image), 1, "")
 
 NODE_CLASS_MAPPINGS = {"Gemini_ImageEditor": Gemini_ImageEditor}
 NODE_DISPLAY_NAME_MAPPINGS = {"Gemini_ImageEditor": "Gemini Image Editor"}
