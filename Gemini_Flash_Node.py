@@ -2,19 +2,19 @@ import os
 import json
 from google import genai
 from google.genai import types
-from io import BytesIO
 from PIL import Image
 import torch
 import numpy as np
+from io import BytesIO
 
 directory = os.path.dirname(os.path.realpath(__file__))
 
 def get_config():
     try:
         config_path = os.path.join(directory, 'config.json')
-        with open(config_path, 'r') as f:
+        with open(config_path) as f:
             return json.load(f)
-    except:
+    except Exception:
         return {}
 
 def save_config(config):
@@ -39,17 +39,17 @@ class Gemini_ImageEditor:
             }
         }
 
-    RETURN_TYPES = ("IMAGE",)
-    RETURN_NAMES = ("edited_image",)
+    RETURN_TYPES = ("IMAGE", "INT")
+    RETURN_NAMES = ("edited_image", "status_code")
     FUNCTION = "edit_image"
     CATEGORY = "Gemini Image Editor"
 
     def tensor_to_image(self, tensor):
         tensor = tensor.cpu()
         image_np = tensor.squeeze().mul(255).clamp(0, 255).byte().numpy()
-        return Image.fromarray(image_np, mode='RGB')
+        return Image.fromarray(image_np)
 
-    def resize_image(self, image, max_size=1024):
+    def resize_image(self, image, max_size):
         width, height = image.size
         if width > height:
             if width > max_size:
@@ -63,57 +63,75 @@ class Gemini_ImageEditor:
 
     def image_to_tensor(self, image):
         image = image.convert("RGB")
-        tensor = torch.from_numpy(np.array(image)).float() / 255.0
+        tensor = torch.from_numpy(np.array(image).astype(np.float32) / 255.0)
         return tensor.unsqueeze(0)
 
     def edit_image(self, prompt, image, api_key):
         if api_key and api_key != self.api_key:
             self.api_key = api_key
-            save_config({"GEMINI_API_KEY": api_key})
             self.client = genai.Client(api_key=self.api_key)
 
-        pil_image = self.tensor_to_image(image)
-        pil_image = self.resize_image(pil_image, 1024)
+        original_image = self.tensor_to_image(image)
+        upload_image = self.resize_image(original_image, 1024)
 
-        temp_image_path = os.path.join(directory, "temp_image.png")
-        pil_image.save(temp_image_path, format="PNG")
+        temp_path = os.path.join(directory, "temp_image.png")
+        upload_image.save(temp_path, format="PNG")
 
-        contents = [
-            types.Content(
-                role="user",
-                parts=[
-                    types.Part.from_uri(file_uri=temp_image_path, mime_type="image/png"),
-                    types.Part.from_text(prompt),
+        try:
+            uploaded_file = self.client.files.upload(file=temp_path)
+
+            contents = [
+                {
+                    "role": "user",
+                    "parts": [
+                        {
+                            "fileData": {
+                                "mimeType": "image/png",
+                                "fileUri": uploaded_file.uri,
+                            },
+                        },
+                        {"text": prompt},
+                    ],
+                },
+            ]
+
+            generation_config = genai.types.GenerateContentConfig(
+                temperature=1,
+                top_k=40,
+                top_p=0.95,
+                max_output_tokens=8192,
+                response_modalities=["image", "text"],
+                response_mime_type="text/plain",
+                safety_settings=[
+                    types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_NONE"),
+                    types.SafetySetting(category="HARM_CATEGORY_CIVIC_INTEGRITY", threshold="BLOCK_NONE"),
+                    types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_NONE"),
+                    types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_NONE"),
+                    types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"),
                 ],
-            ),
-        ]
+            )
 
-        generate_content_config = types.GenerateContentConfig(
-            temperature=1,
-            top_p=0.95,
-            top_k=40,
-            max_output_tokens=8192,
-            response_modalities=["image", "text"],
-            response_mime_type="text/plain",
-        )
+            response = self.client.models.generate_content(
+                model="gemini-2.0-flash-exp",
+                contents=contents,
+                config=generation_config,
+            )
 
-        response = self.client.models.generate_content_stream(
-            model=self.model_name,
-            contents=contents,
-            config=generate_content_config,
-        )
+            for candidate in response.candidates:
+                content = candidate.content
+                if hasattr(content, 'parts'):
+                    for part in content.parts:
+                        if part.inline_data:
+                            image_data = part.inline_data.data
+                            edited_image = Image.open(BytesIO(image_data))
+                            return (self.image_to_tensor(edited_image), 0)
+                else:
+                    return (self.image_to_tensor(original_image), 2)
 
-        for chunk in response:
-            if chunk.candidates and chunk.candidates[0].content.parts:
-                inline_data = chunk.candidates[0].content.parts[0].inline_data
-                if inline_data:
-                    output_path = os.path.join(directory, "edited_image.png")
-                    with open(output_path, "wb") as f:
-                        f.write(inline_data.data)
-                    edited_image = Image.open(output_path)
-                    return (self.image_to_tensor(edited_image),)
+            return (self.image_to_tensor(original_image), 3)
 
-        return (self.image_to_tensor(pil_image),)
+        except Exception:
+            return (self.image_to_tensor(original_image), 1)
 
 NODE_CLASS_MAPPINGS = {"Gemini_ImageEditor": Gemini_ImageEditor}
 NODE_DISPLAY_NAME_MAPPINGS = {"Gemini_ImageEditor": "Gemini Image Editor"}
